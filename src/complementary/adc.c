@@ -20,6 +20,8 @@ static __IO uint32_t adcAvgCounter = 0;
 
 static __IO uint16_t maxAdcOutVValue = 1050; // max output voltage
 static __IO uint16_t minAdcSolarInVValue = 1600; // min input voltage
+static __IO uint16_t minAdcGateVValue = 1600; // min gate input voltage
+
 
 static __IO uint16_t uhADCxConvertedValue[24];
 
@@ -217,10 +219,28 @@ ADC_getMinSolarInVValue() {
 }
 
 //------------------------------------------------------------------------------
+uint16_t
+ADC_getMinGateVValue() {
+  uint16_t result = 0;
+  __disable_irq();
+  result = minAdcGateVValue;
+  __enable_irq();
+  return result;
+}
+
+//------------------------------------------------------------------------------
 void
 ADC_setMinSolarInVValue(uint16_t value) {
   __disable_irq();
   minAdcSolarInVValue = value;
+  __enable_irq();
+}
+
+//------------------------------------------------------------------------------
+void
+ADC_setMinGateVValue(uint16_t value) {
+  __disable_irq();
+  minAdcGateVValue = value;
   __enable_irq();
 }
 
