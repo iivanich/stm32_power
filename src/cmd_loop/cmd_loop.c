@@ -174,7 +174,7 @@ mainLoop() {
 
                 if (handleTimerPtr != NULL) {
                         static uint32_t lastTick = 0;
-                        if(HAL_GetTick() > lastTick) {
+                        if(HAL_GetTick() != lastTick) {
                                 lastTick = HAL_GetTick();
                                 handleTimerPtr("$timer#");
                         }

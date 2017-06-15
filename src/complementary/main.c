@@ -6,6 +6,7 @@
 #include "adc.h"
 #include "dac.h"
 #include "pwm.h"
+#include "iwdg.h"
 //------------------------------------------------------------------------------
 
 
@@ -66,14 +67,14 @@ int main(void) {
   /* Configure the system clock to 180 MHz */
   SystemClock_Config();
 
-  initAndStartDbgUsart();
+  IWDG_initAndStart(250);
 
+  initAndStartDbgUsart();
 
   DBG(1, "\r\nStarting...\r\n");
 
   /* Configure LED2 */
   BSP_LED_Init(LED2);
-
 
 #ifdef STM32F446xx
   DAC_initAndStart();

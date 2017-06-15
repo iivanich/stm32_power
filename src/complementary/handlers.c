@@ -13,6 +13,7 @@
 #include "adc.h"
 #include "dac.h"
 #include "pwm.h"
+#include "iwdg.h"
 //------------------------------------------------------------------------------
 
 
@@ -114,7 +115,7 @@ handleHelp(const char* inCmd) {
     DBG(0, "   sets the PWM carrier frequency\r\n");
 
     DBG(0, "$toggle_enable#\r\n");
-    DBG(0, "   toggles IR2110 enable pin PA5\r\n");
+    DBG(0, "   toggles IR2110 enable pin PA6\r\n");
 
 #ifdef STM32F446xx
     DBG(0, "$set_dac:[uint16_t]#\r\n");
@@ -193,8 +194,21 @@ uint8_t
 handleTimer(const char* inCmd) {
     UNUSED(inCmd);
     static uint32_t lastTick250 = 0;
+    static uint32_t lastTick100 = 0;
 
-    if (HAL_GetTick() > lastTick250) {
+    uint32_t currentTick = HAL_GetTick();
+    uint32_t elapsed250 = currentTick - lastTick250;
+    if (currentTick < lastTick250) { //overflow
+        elapsed250 = 0xFFFFFFFF - lastTick250 + currentTick;
+    }
+
+    uint32_t elapsed100 = currentTick - lastTick100;
+    if (currentTick < lastTick100) { //overflow
+        elapsed100 = 0xFFFFFFFF - lastTick100 + currentTick;
+    }
+
+
+    if (elapsed250 > 250) {
         uint16_t adcA = ADC_getOutVValue();
         uint16_t adcB = ADC_getSolarInVValue();
         uint16_t adcC = ADC_getSolarInVValue();
@@ -204,6 +218,11 @@ handleTimer(const char* inCmd) {
             5, adcB,
             5, adcC);
         lastTick250 += 250;
+    }
+
+    if (elapsed100 > 100) {
+        IWDG_refresh();
+        lastTick100 += 100;
     }
 
     return CMD_OK;

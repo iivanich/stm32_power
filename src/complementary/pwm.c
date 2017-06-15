@@ -86,8 +86,8 @@ PWM_initAndStart() {
     Error_Handler();
   }
 
-  /*##-2- Toggle PA05 IO, enable IR2110 */
-  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_6);
+  /*##-2- Set PA06 IO, enable IR2110 */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_SET);
 
 }
 
