@@ -39,8 +39,8 @@ initAndStartDbgUsart() {
      - Parity = None
      - BaudRate = 115200 baud
      - Hardware flow control disabled (RTS and CTS signals) */
-  UartHandle.Instance          = USART1;
-  dbgCom = DRV_USART1;
+  UartHandle.Instance          = USART2;
+  dbgCom = DRV_USART2;
 
   UartHandle.Init.BaudRate     = 115200;
   UartHandle.Init.WordLength   = UART_WORDLENGTH_8B;
@@ -51,7 +51,7 @@ initAndStartDbgUsart() {
   //UartHandle.Init.OverSampling = UART_OVERSAMPLING_16;
 
   DrvUsartInit(&UartHandle);
-  DBG_set_verbosity(1);
+  DBG_setVerbosity(1);
 }
 
 //------------------------------------------------------------------------------

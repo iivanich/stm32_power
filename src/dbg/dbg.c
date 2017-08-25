@@ -15,9 +15,20 @@ uint8_t dbgCom = -1;
 #define DBG_SEND_DATA(buf,len) DrvUsartWriteBlocking(dbgCom, buf, len);
 
 //-----------------------------------------------------------------------------
-void
-DBG_set_verbosity(int verbosity) {
-        verbosityLevel = verbosity;
+bool
+DBG_setVerbosity(int verbosity) {
+        if (verbosity >= 0 && verbosity <= 10) {
+                verbosityLevel = verbosity;
+                return true;
+        }
+
+        return true;
+}
+
+//-----------------------------------------------------------------------------
+int
+DBG_getVerbosity() {
+        return verbosityLevel;
 }
 
 //-----------------------------------------------------------------------------

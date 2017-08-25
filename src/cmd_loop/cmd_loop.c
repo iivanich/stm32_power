@@ -64,11 +64,34 @@ assembleCommand(uint8_t* cmdBuffer, uint16_t* cmdSize,
         uint16_t offset = 0;
 
         if ((*cmdSize) == 0) {
-                while(offset < inSize && inBuffer[offset] != '$')
+                while(offset < inSize
+                      && inBuffer[offset] != '$'
+                      && inBuffer[offset] != 'm'
+                      && inBuffer[offset] != 'h'
+                      && inBuffer[offset] != 'p'
+                      && inBuffer[offset] != '/'
+                      && inBuffer[offset] != '-'
+                      && inBuffer[offset] != '+')
                         offset ++;
 
                 if (offset == inSize) {
                         return false; //no start char found!
+                }
+
+                //assemble single key commands
+                if(inBuffer[offset] != '$') {
+                        cmdBuffer[*cmdSize] = '$';
+                        (*cmdSize) ++;
+                        cmdBuffer[(*cmdSize)] = inBuffer[offset];
+                        (*cmdSize) ++;
+                        cmdBuffer[*cmdSize] = ':';
+                        (*cmdSize) ++;
+                        cmdBuffer[*cmdSize] = '#';
+                        (*cmdSize) ++;
+                        cmdBuffer[*cmdSize] = 0; //null terminated string
+                        (*cmdSize) ++;
+                        //$x:#
+                        return true;
                 }
         }
 

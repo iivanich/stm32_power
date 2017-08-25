@@ -18,12 +18,13 @@ static __IO uint32_t adcOutVAvg = 0;
 static __IO uint32_t adcSolarInVAvg = 0;
 static __IO uint32_t adcAvgCounter = 0;
 
-static __IO uint16_t maxAdcOutVValue = 1050; // max output voltage
-static __IO uint16_t minAdcSolarInVValue = 1600; // min input voltage
-static __IO uint16_t minAdcGateVValue = 1600; // min gate input voltage
-
+static __IO uint16_t maxAdcOutVValue = 1700; // max output voltage
+static __IO uint16_t minAdcSolarInVValue = 600; // min input voltage
+static __IO uint16_t minAdcGateVValue = 1000; // min gate input voltage
 
 static __IO uint16_t uhADCxConvertedValue[24];
+
+static __IO bool adcManualMode = false;
 
 //------------------------------------------------------------------------------
 void
@@ -229,10 +230,28 @@ ADC_getMinGateVValue() {
 }
 
 //------------------------------------------------------------------------------
+bool
+ADC_getManualMode() {
+  bool result = 0;
+  __disable_irq();
+  result = adcManualMode;
+  __enable_irq();
+  return result;
+}
+
+//------------------------------------------------------------------------------
 void
 ADC_setMinSolarInVValue(uint16_t value) {
   __disable_irq();
   minAdcSolarInVValue = value;
+  __enable_irq();
+}
+
+//------------------------------------------------------------------------------
+void
+ADC_setManualMode(bool value) {
+  __disable_irq();
+  adcManualMode = value;
   __enable_irq();
 }
 
@@ -273,9 +292,6 @@ ADC_adjustPWM() {
 
     //if (lastAvgA > 0)
     PWM_setFixedPulse(PWM_getFixedPulse() + pulseInc);
-
-    /* Turn LED2 on: Transfer process is correct */
-    BSP_LED_Toggle(LED2);
   }
 }
 
@@ -302,21 +318,22 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
     + uhADCxConvertedValue[19]
     + uhADCxConvertedValue[22];
 
-  adcOutVValue = adcOutVValue / 2 + sum / 8;
+  adcSolarInVValue = adcSolarInVValue / 2 + sum / 8;
 
   sum = uhADCxConvertedValue[14]
     + uhADCxConvertedValue[17]
     + uhADCxConvertedValue[20]
     + uhADCxConvertedValue[23];
 
-  adcSolarInVValue = adcSolarInVValue / 2 + sum / 8;
+  adcOutVValue = adcOutVValue / 2 + sum / 8;
 
   adcGateVAvg += adcGateVValue;
   adcOutVAvg += adcOutVValue;
   adcSolarInVAvg += adcSolarInVValue;
   adcAvgCounter ++;
 
-  ADC_adjustPWM();
+  if (!ADC_getManualMode())
+    ADC_adjustPWM();
 }
 
 //------------------------------------------------------------------------------
@@ -343,14 +360,14 @@ HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc) {
     + uhADCxConvertedValue[7]
     + uhADCxConvertedValue[10];
 
-  adcOutVValue = adcOutVValue / 2 + sum / 8;
+  adcSolarInVValue = adcSolarInVValue / 2 + sum / 8;
 
   sum = uhADCxConvertedValue[2]
     + uhADCxConvertedValue[5]
     + uhADCxConvertedValue[8]
     + uhADCxConvertedValue[11];
 
-  adcSolarInVValue = adcSolarInVValue / 2 + sum / 8;
+  adcOutVValue = adcOutVValue / 2 + sum / 8;
 }
 
 //------------------------------------------------------------------------------

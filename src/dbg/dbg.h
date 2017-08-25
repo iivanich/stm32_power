@@ -3,7 +3,8 @@
 
 //#include "main.h"
 
-void DBG_set_verbosity(int verbosity);
+bool DBG_setVerbosity(int verbosity);
+int  DBG_getVerbosity();
 void DBG(int verbosity, const char *format, ...);
 void DBG_verbose(const char *format, ...);
 void DBG_hexdump(int verbosity, const uint8_t *data, int size, int lbreak);

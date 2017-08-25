@@ -47,5 +47,12 @@ void
 ADC_setMinSolarInVValue(uint16_t value);
 
 //------------------------------------------------------------------------------
+bool
+ADC_getManualMode();
+
+//------------------------------------------------------------------------------
+void
+ADC_setManualMode(bool value);
+
 
 #endif

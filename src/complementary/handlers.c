@@ -28,6 +28,12 @@ SCmdEntry cmdEntries[] = {
     {"set_freq", handleSetFreq},
     {"timer", handleTimer},
     {"toggle_enable", handleToggleEnable},
+    {"+", handlePlus},
+    {"-", handleMinus},
+    {"/", handleToggleEnable},
+    {"p", handlePrintState},
+    {"h", handleHelp},
+    {"m", handleToggleManual},
 #ifdef STM32F446xx
     {"set_dac", handleSetDac},
 #endif
@@ -147,10 +153,32 @@ handleSetDbg(const char* inCmd) {
 
     int verbosityLevel = atoi(tokenBuffer);
 
-    DBG_set_verbosity(verbosityLevel);
+    DBG_setVerbosity(verbosityLevel);
     DBG(2, "setting verbosity %d\r\n", verbosityLevel);
 
     return CMD_OK;
+}
+
+//-----------------------------------------------------------------------------
+uint8_t
+handlePlus(const char* inCmd) {
+    if(DBG_setVerbosity(DBG_getVerbosity() + 1)) {
+        DBG(2, "setting verbosity %d\r\n", DBG_getVerbosity());
+        return CMD_OK;
+    }
+
+    return CMD_ERR_INVALID_ARG;
+}
+
+//-----------------------------------------------------------------------------
+uint8_t
+handleMinus(const char* inCmd) {
+    if(DBG_setVerbosity(DBG_getVerbosity() - 1)) {
+        DBG(2, "setting verbosity %d\r\n", DBG_getVerbosity());
+        return CMD_OK;
+    }
+
+    return CMD_ERR_INVALID_ARG;
 }
 
 //-----------------------------------------------------------------------------
@@ -195,8 +223,10 @@ handleTimer(const char* inCmd) {
     UNUSED(inCmd);
     static uint32_t lastTick250 = 0;
     static uint32_t lastTick100 = 0;
+    static uint32_t lastTick2000 = 0;
 
     uint32_t currentTick = HAL_GetTick();
+
     uint32_t elapsed250 = currentTick - lastTick250;
     if (currentTick < lastTick250) { //overflow
         elapsed250 = 0xFFFFFFFF - lastTick250 + currentTick;
@@ -207,22 +237,40 @@ handleTimer(const char* inCmd) {
         elapsed100 = 0xFFFFFFFF - lastTick100 + currentTick;
     }
 
+    uint32_t elapsed2000 = currentTick - lastTick2000;
+    if (currentTick < lastTick2000) { //overflow
+        elapsed2000 = 0xFFFFFFFF - lastTick2000 + currentTick;
+    }
 
     if (elapsed250 > 250) {
         uint16_t adcA = ADC_getOutVValue();
         uint16_t adcB = ADC_getSolarInVValue();
         uint16_t adcC = ADC_getSolarInVValue();
 
-        DBG(3, "adcOutV: %*d  adcSolarInV: %*d adcGateV: %*d\r\n",
+        DBG(3, "adcOutV: %*d  adcSolarInV: %*d adcGateV: %*d pulse: %*d\r\n",
             5, adcA,
             5, adcB,
-            5, adcC);
+            5, adcC,
+            5, PWM_getFixedPulse());
         lastTick250 += 250;
     }
 
     if (elapsed100 > 100) {
         IWDG_refresh();
         lastTick100 += 100;
+    }
+
+    static bool ledOn = false;
+    if (elapsed2000 > 2000) {
+        /* Turn LED2 on: Transfer process is correct */
+        if (!ledOn) {
+            BSP_LED_On(LED2);
+            ledOn = true;
+        }
+        lastTick2000 += 2000;
+    } else if (ledOn && elapsed2000 / 4 > PWM_getFixedPulse()) {
+        BSP_LED_Off(LED2);
+        ledOn = false;
     }
 
     return CMD_OK;
@@ -233,6 +281,14 @@ uint8_t
 handleToggleEnable(const char* inCmd) {
     UNUSED(inCmd);
     HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_6);
+    return CMD_OK;
+}
+
+//-----------------------------------------------------------------------------
+uint8_t
+handleToggleManual(const char* inCmd) {
+    UNUSED(inCmd);
+    ADC_setManualMode(!ADC_getManualMode());
     return CMD_OK;
 }
 //-----------------------------------------------------------------------------
