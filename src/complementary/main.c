@@ -7,6 +7,8 @@
 #include "dac.h"
 #include "pwm.h"
 #include "iwdg.h"
+#include "eeprom.h"
+
 //------------------------------------------------------------------------------
 
 
@@ -42,7 +44,7 @@ initAndStartDbgUsart() {
   UartHandle.Instance          = USART2;
   dbgCom = DRV_USART2;
 
-  UartHandle.Init.BaudRate     = 115200;
+  UartHandle.Init.BaudRate     = 9600;
   UartHandle.Init.WordLength   = UART_WORDLENGTH_8B;
   UartHandle.Init.StopBits     = UART_STOPBITS_1;
   UartHandle.Init.Parity       = UART_PARITY_NONE;
@@ -67,7 +69,7 @@ int main(void) {
   /* Configure the system clock to 180 MHz */
   SystemClock_Config();
 
-  IWDG_initAndStart(250);
+  IWDG_initAndStart(1500);
 
   initAndStartDbgUsart();
 
@@ -75,12 +77,12 @@ int main(void) {
 
   /* Configure LED2 */
   BSP_LED_Init(LED2);
+  BSP_LED_On(LED2);
 
-#ifdef STM32F446xx
-  DAC_initAndStart();
-#endif
-
+  DBG(1, "Start PWM...\r\n");
   PWM_initAndStart();
+
+  DBG(1, "Start ADC...\r\n");
   ADC_initAndStart();
 
   mainLoop();
@@ -112,6 +114,7 @@ void SystemClock_Config(void)
 {
   RCC_ClkInitTypeDef clkinitstruct = {0};
   RCC_OscInitTypeDef oscinitstruct = {0};
+  RCC_PeriphCLKInitTypeDef periphclkinit = {0};
 
   /* Configure PLL ------------------------------------------------------*/
   /* PLL configuration: PLLCLK = (HSI / 2) * PLLMUL = (8 / 2) * 16 = 64 MHz */
@@ -126,10 +129,9 @@ void SystemClock_Config(void)
   oscinitstruct.PLL.PLLState    = RCC_PLL_ON;
   oscinitstruct.PLL.PLLSource   = RCC_PLLSOURCE_HSI_DIV2;
   oscinitstruct.PLL.PLLMUL      = RCC_PLL_MUL16;
-  if (HAL_RCC_OscConfig(&oscinitstruct)!= HAL_OK)
-  {
+  if (HAL_RCC_OscConfig(&oscinitstruct)!= HAL_OK) {
     /* Initialization Error */
-    while(1);
+    Error_Handler();
   }
 
   /* Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2
@@ -139,11 +141,47 @@ void SystemClock_Config(void)
   clkinitstruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   clkinitstruct.APB2CLKDivider = RCC_HCLK_DIV1;
   clkinitstruct.APB1CLKDivider = RCC_HCLK_DIV2;
-  if (HAL_RCC_ClockConfig(&clkinitstruct, FLASH_LATENCY_2)!= HAL_OK)
-  {
+  if (HAL_RCC_ClockConfig(&clkinitstruct, FLASH_LATENCY_2)!= HAL_OK) {
     /* Initialization Error */
-    while(1);
+    Error_Handler();
   }
+
+  periphclkinit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
+  periphclkinit.AdcClockSelection = RCC_ADCPCLK2_DIV8;
+  if (HAL_RCCEx_PeriphCLKConfig(&periphclkinit) != HAL_OK) {
+    /* Initialization Error */
+    Error_Handler();
+  }
+
+  /**Configure the Systick interrupt time */
+  HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);
+
+  /**Configure the Systick */
+  HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
+
+  /* SysTick_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
+}
+
+/**
+ * Initializes the Global MSP.
+ */
+void HAL_MspInit(void) {
+  HAL_NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
+
+  /* System interrupt init*/
+  /* MemoryManagement_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(MemoryManagement_IRQn, 0, 0);
+  /* BusFault_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(BusFault_IRQn, 0, 0);
+  /* UsageFault_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(UsageFault_IRQn, 0, 0);
+  /* SVCall_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(SVCall_IRQn, 0, 0);
+  /* DebugMonitor_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DebugMonitor_IRQn, 0, 0);
+  /* PendSV_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(PendSV_IRQn, 0, 0);
 }
 
 //------------------------------------------------------------------------------

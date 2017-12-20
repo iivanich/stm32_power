@@ -10,12 +10,6 @@
 #include "tokenizer.h"
 
 #include "usart.h"
-//#include "handlers.h"
-
-//lora data parsing
-#define CMD_MAGICK "1207"
-#define CMD_MAGICK_LEN  4
-#define CMD_ERR_NO_MAGICK  0xFFFF
 
 static const char* errorCodes[] = {
         "CMD_OK",
@@ -25,7 +19,6 @@ static const char* errorCodes[] = {
         "CMD_ERR_INVALID_CMD",
         "CMD_ERR_INVALID_STATE"
 };
-
 
 uint8_t
 handleCommand(char* inCmd);
@@ -161,7 +154,15 @@ handleCommand(char* inCmd) {
 //-----------------------------------------------------------------------------
 void
 readEepromState() {
+        for (int iCnter = 0;; iCnter ++) {
+                if (cmdEntries[iCnter].cmdName == NULL)
+                        break;
 
+                if (strcmp(cmdEntries[iCnter].cmdName, "flash_read") == 0) {
+                        cmdEntries[iCnter].handler("$flash_read#");
+                        break;
+                }
+        }
 }
 
 //-----------------------------------------------------------------------------

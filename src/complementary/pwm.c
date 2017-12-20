@@ -7,8 +7,8 @@
 
 /* Timer handler declaration */
 static TIM_HandleTypeDef    TimHandle;
-static uint32_t CARRIER_FREQ = (uint32_t)(50000);  // hz, carrier frequency
-static uint32_t PULSE_VALUE  = (uint32_t)(10);
+static uint32_t CARRIER_FREQ = (uint32_t)(150000);  // hz, carrier frequency
+static uint32_t PULSE_VALUE  = (uint32_t)(MIN_DUTY_CYCLE);
 
 /* Timer Break Configuration Structure declaration */
 static TIM_BreakDeadTimeConfigTypeDef sBreakConfig;
@@ -92,14 +92,17 @@ PWM_initAndStart() {
 }
 
 //------------------------------------------------------------------------------
-void
+bool
 PWM_setFixedPulse(uint16_t pulse) {
     if(pulse < MIN_DUTY_CYCLE || pulse > MAX_DUTY_CYCLE)
-        return;
+        return false;
+
     if (PULSE_VALUE != pulse) {
       PULSE_VALUE = pulse;
       __HAL_TIM_SET_COMPARE(&TimHandle, TIM_CHANNEL_1, pulse);
     }
+
+    return true;
 }
 
 //------------------------------------------------------------------------------
@@ -109,20 +112,21 @@ PWM_getFixedPulse() {
 }
 
 //------------------------------------------------------------------------------
-void
+bool
 PWM_setFreq(uint32_t freq) {
     if(freq < MIN_FREQ || freq > MAX_FREQ)
-        return;
+        return false;
 
     CARRIER_FREQ = freq;
 
     /* Set the Prescaler value */
     TimHandle.Instance->PSC = (uint32_t)(SystemCoreClock /
                                          (CARRIER_FREQ * PERIOD_VALUE) - 1);
+    return true;
 }
 
 //------------------------------------------------------------------------------
-uint16_t
+uint32_t
 PWM_getFreq() {
     return CARRIER_FREQ;
 }

@@ -49,13 +49,17 @@ DrvUsartReadBlocking(uint8_t com, uint8_t* buffer, uint16_t maxBufSize) {
 
 //------------------------------------------------------------------------------
 void
-DrvUsartWriteBlocking(uint8_t com, uint8_t* buffer, uint16_t size) {
+DrvUsartWriteBlocking(uint8_t com, uint8_t* buffer, uint16_t size, bool flush) {
         uint16_t bytesWritten = 0;
         while(bytesWritten < size) {
                 bytesWritten += DrvUsartWrite(com, buffer + bytesWritten,
                                                  size - bytesWritten);
                 __WFI();
         }
+
+        if (flush)
+                while(!IsFifoEmpty((Fifo_t*)usartBuffers[com][TX]))
+                        __WFI();
 }
 
 //------------------------------------------------------------------------------
@@ -170,7 +174,7 @@ DrvUsartMspInit(UART_HandleTypeDef* USART_InitStruct) {
         /* init tx buffer */
         FifoInit((Fifo_t*)usartBuffers[com][TX], DRV_USART_BUFFER_SIZE);
 
-//        HAL_NVIC_SetPriority(usartConfs[com].irq, 0, 0);
+        HAL_NVIC_SetPriority(usartConfs[com].irq, 1, 0);
         HAL_NVIC_EnableIRQ(usartConfs[com].irq);
 }
 

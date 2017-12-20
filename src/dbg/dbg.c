@@ -12,7 +12,7 @@ static int verbosityLevel;
 
 uint8_t dbgCom = -1;
 
-#define DBG_SEND_DATA(buf,len) DrvUsartWriteBlocking(dbgCom, buf, len);
+#define DBG_SEND_DATA(buf,len, flush) DrvUsartWriteBlocking(dbgCom, buf, len, flush);
 
 //-----------------------------------------------------------------------------
 bool
@@ -40,7 +40,20 @@ DBG(int verbosity, const char *format, ...) {
                 va_start(args, format);
                 vsprintf(formatted, format, args);
                 va_end(args);
-                        DBG_SEND_DATA((uint8_t*)formatted, strlen(formatted));
+                DBG_SEND_DATA((uint8_t*)formatted, strlen(formatted), false);
+        }
+}
+
+//-----------------------------------------------------------------------------
+void
+DBGF(int verbosity, const char *format, ...) {
+        if(verbosity <= verbosityLevel) {
+                char formatted[256];
+                va_list args;
+                va_start(args, format);
+                vsprintf(formatted, format, args);
+                va_end(args);
+                DBG_SEND_DATA((uint8_t*)formatted, strlen(formatted), true);
         }
 }
 
@@ -53,8 +66,8 @@ DBG_verbose(const char *format, ...) {
         vsprintf(formatted, format, args);
         va_end(args);
 
-        DBG_SEND_DATA((uint8_t*)formatted, strlen(formatted));
-        DBG_SEND_DATA((uint8_t*)"\r\n", strlen("\r\n"));
+        DBG_SEND_DATA((uint8_t*)formatted, strlen(formatted), true);
+        DBG_SEND_DATA((uint8_t*)"\r\n", strlen("\r\n"), true);
 }
 
 //-----------------------------------------------------------------------------

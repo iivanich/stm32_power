@@ -18,29 +18,19 @@ static __IO uint32_t adcOutVAvg = 0;
 static __IO uint32_t adcSolarInVAvg = 0;
 static __IO uint32_t adcAvgCounter = 0;
 
-static __IO uint16_t maxAdcOutVValue = 1700; // max output voltage
+static __IO uint16_t maxAdcOutVValue = 1400; // max output voltage, 80V
 static __IO uint16_t minAdcSolarInVValue = 600; // min input voltage
 static __IO uint16_t minAdcGateVValue = 1000; // min gate input voltage
 
 static __IO uint16_t uhADCxConvertedValue[24];
 
-static __IO bool adcManualMode = false;
+static __IO bool adcManualMode = true;
 
 //------------------------------------------------------------------------------
 void
 ADC_initAndStart() {
 
   ADC_ChannelConfTypeDef sAdcConfig;
-  /* STM32F4xx HAL library initialization:
-     - Configure the Flash prefetch
-     - Systick timer is configured by default as source of time base, but user
-     can eventually implement his proper time base source (a general purpose
-     timer for example or other time source), keeping in mind that Time base
-     duration should be kept 1ms since PPP_TIMEOUT_VALUEs are defined and
-     handled in milliseconds basis.
-     - Set NVIC Group Priority to 4
-     - Low Level Initialization
-  */
 
   /*##-1- Configure the ADC peripheral #######################################*/
   AdcHandle.Instance                   = ADC1;
@@ -86,6 +76,12 @@ ADC_initAndStart() {
     Error_Handler();
   }
 
+  /* Run the ADC calibration */
+  if (HAL_ADCEx_Calibration_Start(&AdcHandle) != HAL_OK) {
+    /* Calibration Error */
+    Error_Handler();
+  }
+
   /*##-3- Start the conversion process #######################################*/
   /* Note: Considering IT occurring after each number of ADC conversions      */
   /*       (IT by DMA end of transfer), select sampling time and ADC clock    */
@@ -96,7 +92,6 @@ ADC_initAndStart() {
     Error_Handler();
   }
 }
-
 
 //------------------------------------------------------------------------------
 void
@@ -157,36 +152,6 @@ ADC_getSolarInVAvg() {
   uint16_t result = 0;
   __disable_irq();
   result = adcSolarInVAvg / adcAvgCounter;
-  __enable_irq();
-  return result;
-}
-
-//------------------------------------------------------------------------------
-uint16_t
-ADC_getOutVValue() {
-    uint16_t result = 0;
-    __disable_irq();
-    result = adcOutVValue;
-    __enable_irq();
-    return result;
-}
-
-//------------------------------------------------------------------------------
-uint16_t
-ADC_getSolarInVValue() {
-    uint16_t result = 0;
-    __disable_irq();
-    result = adcSolarInVValue;
-    __enable_irq();
-    return result;
-}
-
-//------------------------------------------------------------------------------
-uint16_t
-ADC_getGateVValue() {
-  uint16_t result = 0;
-  __disable_irq();
-  result = adcGateVValue;
   __enable_irq();
   return result;
 }
@@ -267,17 +232,25 @@ ADC_setMinGateVValue(uint16_t value) {
 void
 ADC_adjustPWM() {
   static uint16_t lastAvgOutV = 0;
+  static int8_t pulseInc = 1;
 
-  if (ADC_getOutVAvg() > ADC_getMaxOutVValue() && ADC_getAvgCounter() > 200) {
-    PWM_setFixedPulse(PWM_getFixedPulse() - 1);
+  if (ADC_getOutVAvg() > ADC_getMaxOutVValue() && ADC_getAvgCounter() > 1000) {
+    BSP_LED_Toggle(LED2);
+
+    PWM_setFixedPulse(PWM_getFixedPulse() - 1); //decrease pulse slowly
+    pulseInc = -1; lastAvgOutV = 0; //continue decrease during next adjustment
     ADC_resetAvgs();
-  } else if (ADC_getSolarInVAvg() < ADC_getMinSolarInVValue() && ADC_getAvgCounter() > 100) {
+  } else if (ADC_getSolarInVAvg() < ADC_getMinSolarInVValue() && ADC_getAvgCounter() > 1000) {
+    BSP_LED_Toggle(LED2);
+
     PWM_setFixedPulse(PWM_getFixedPulse() - 1); //decrease pulse,
                                                 //reset possible otherwise!
+    pulseInc = -1; lastAvgOutV = 0; //continue decrease during next adjustment
     ADC_resetAvgs();
-  } else if (ADC_getAvgCounter() > 1000) {
+  } else if (ADC_getAvgCounter() > 16000) {
     uint16_t avgOutV, avgSolarInV, avgGate;
-    static int8_t pulseInc = 1;
+
+    BSP_LED_Toggle(LED2);
 
     ADC_getAvgs(&avgGate, &avgOutV, &avgSolarInV);
 
@@ -311,25 +284,22 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
     + uhADCxConvertedValue[18]
     + uhADCxConvertedValue[21];
 
-  adcGateVValue = adcGateVValue / 2 + sum / 8;
+  adcGateVAvg += sum / 4;
 
   sum = uhADCxConvertedValue[13]
     + uhADCxConvertedValue[16]
     + uhADCxConvertedValue[19]
     + uhADCxConvertedValue[22];
 
-  adcSolarInVValue = adcSolarInVValue / 2 + sum / 8;
+  adcSolarInVAvg += sum / 4;
 
   sum = uhADCxConvertedValue[14]
     + uhADCxConvertedValue[17]
     + uhADCxConvertedValue[20]
     + uhADCxConvertedValue[23];
 
-  adcOutVValue = adcOutVValue / 2 + sum / 8;
+  adcOutVAvg += sum / 4;
 
-  adcGateVAvg += adcGateVValue;
-  adcOutVAvg += adcOutVValue;
-  adcSolarInVAvg += adcSolarInVValue;
   adcAvgCounter ++;
 
   if (!ADC_getManualMode())
@@ -353,21 +323,23 @@ HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc) {
     + uhADCxConvertedValue[6]
     + uhADCxConvertedValue[9];
 
-  adcGateVValue = adcGateVValue / 2 + sum / 8;
+  adcGateVAvg += sum / 4;
 
   sum = uhADCxConvertedValue[1]
     + uhADCxConvertedValue[4]
     + uhADCxConvertedValue[7]
     + uhADCxConvertedValue[10];
 
-  adcSolarInVValue = adcSolarInVValue / 2 + sum / 8;
+  adcSolarInVAvg += sum / 4;
 
   sum = uhADCxConvertedValue[2]
     + uhADCxConvertedValue[5]
     + uhADCxConvertedValue[8]
     + uhADCxConvertedValue[11];
 
-  adcOutVValue = adcOutVValue / 2 + sum / 8;
+  adcOutVAvg += sum / 4;
+
+  adcAvgCounter ++;
 }
 
 //------------------------------------------------------------------------------
@@ -425,25 +397,17 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
 
   /*##-4- Configure the NVIC for DMA #########################################*/
   /* NVIC configuration for DMA transfer complete interrupt */
-  //HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
 }
 
 //------------------------------------------------------------------------------
-
-/******************************************************************************/
-/*                 STM32F4xx Peripherals Interrupt Handlers                   */
-/*  Add here the Interrupt Handler for the used peripheral(s) (PPP), for the  */
-/*  available peripheral interrupt handler's name please refer to the startup */
-/*  file (startup_stm32f4xx.s).                                               */
-/******************************************************************************/
 
 /**
  * @brief  This function handles DMA interrupt request.
  * @param  None
  * @retval None
  */
-void DMA1_Channel1_IRQHandler(void)
-{
+void DMA1_Channel1_IRQHandler(void) {
   HAL_DMA_IRQHandler(AdcHandle.DMA_Handle);
 }

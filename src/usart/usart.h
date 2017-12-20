@@ -46,7 +46,7 @@ DrvUsartReadBlocking(uint8_t com, uint8_t* buffer, uint16_t maxSize);
 
 //------------------------------------------------------------------------------
 void
-DrvUsartWriteBlocking(uint8_t com, uint8_t* buffer, uint16_t size);
+DrvUsartWriteBlocking(uint8_t com, uint8_t* buffer, uint16_t size, bool flush);
 
 //------------------------------------------------------------------------------
 void
